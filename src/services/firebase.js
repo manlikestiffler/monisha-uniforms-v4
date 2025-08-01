@@ -68,11 +68,6 @@ const getUserId = () => {
   return userId;
 };
 
-// Generate a random verification code
-const generateVerificationCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
 // Firebase service functions
 const firebaseService = {
   // Get all uniforms
@@ -707,16 +702,6 @@ const firebaseService = {
         displayName: name
       });
 
-      // Generate and send verification code
-      const verificationCode = generateVerificationCode();
-      
-      // Store verification code in Firestore
-      await setDoc(doc(db, "verification_codes", user.uid), {
-        code: verificationCode,
-        createdAt: serverTimestamp(),
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes expiry
-      });
-
       // Store the user in "ecom users" collection to separate from inventory app users
       await setDoc(doc(db, "ecom users", user.uid), {
         uid: user.uid,
@@ -728,12 +713,10 @@ const firebaseService = {
         userType: 'ecommerce'
       });
 
-      // Send verification email
+      // Send verification email using Firebase's built-in method
       await sendEmailVerification(user, {
-        actionCodeSettings: {
-          url: `${window.location.origin}/verify-email?uid=${user.uid}`,
-          handleCodeInApp: true
-        }
+        url: `${window.location.origin}/login`, // Redirect to login after verification
+        handleCodeInApp: true,
       });
 
       return { success: true, user };
@@ -748,30 +731,32 @@ const firebaseService = {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+
+      // Force a reload of the user's profile to get the latest emailVerified status
+      await user.reload();
+      const freshUser = auth.currentUser;
       
-      // Update last login time in ecom users collection
-      const userDocRef = doc(db, "ecom users", user.uid);
+      const userDocRef = doc(db, "ecom users", freshUser.uid);
       const userDoc = await getDoc(userDocRef);
       
       if (userDoc.exists()) {
-        // Update existing ecom user
+        // Check if the user is an ecommerce user
+        if (userDoc.data().userType !== 'ecommerce') {
+          await signOut(auth); // Sign out the user immediately
+          return { success: false, error: "Access denied. This account is not authorized for the website." };
+        }
+        // Update existing ecom user's last login time
         await updateDoc(userDocRef, {
           lastLoginAt: serverTimestamp()
         });
       } else {
-        // If user exists in auth but not in ecom users collection, add them
-        await setDoc(userDocRef, {
-          uid: user.uid,
-          displayName: user.displayName || '',
-          email: user.email,
-          emailVerified: user.emailVerified,
-          createdAt: serverTimestamp(),
-          lastLoginAt: serverTimestamp(),
-          userType: 'ecommerce'
-        });
+        // If user exists in auth but not in our collection, they are not an ecom user.
+        // This case can happen if an inventory user tries to log in.
+        await signOut(auth);
+        return { success: false, error: "Access denied. Please use a valid website account." };
       }
       
-      return { success: true, user: userCredential.user };
+      return { success: true, user: freshUser };
     } catch (error) {
       console.error("Error signing in:", error);
       return { success: false, error: error.message };
@@ -800,47 +785,22 @@ const firebaseService = {
     }
   },
 
-  // Verify email with code
-  verifyEmail: async (uid, code) => {
+  resendVerificationEmail: async () => {
     try {
-      const verificationDoc = await getDoc(doc(db, "verification_codes", uid));
-      
-      if (!verificationDoc.exists()) {
-        return { success: false, error: "Verification code not found" };
-      }
-
-      const verificationData = verificationDoc.data();
-      
-      // Check if code is expired
-      if (verificationData.expiresAt.toDate() < new Date()) {
-        return { success: false, error: "Verification code has expired" };
-      }
-
-      // Check if code matches
-      if (verificationData.code !== code) {
-        return { success: false, error: "Invalid verification code" };
-      }
-
-      // Delete verification code after successful verification
-      await deleteDoc(doc(db, "verification_codes", uid));
-
-      // Update user's email verification status
       const user = auth.currentUser;
-      if (user) {
-        await updateProfile(user, {
-          emailVerified: true
-        });
-        
-        // Also update emailVerified status in ecom users collection
-        const userDocRef = doc(db, "ecom users", uid);
-        await updateDoc(userDocRef, {
-          emailVerified: true
-        });
+      if (!user) {
+        return { success: false, error: "No user logged in" };
       }
-
+      
+      // Resend verification email using Firebase's built-in method
+      await sendEmailVerification(user, {
+        url: `${window.location.origin}/login`, // Redirect to login after verification
+        handleCodeInApp: true,
+      });
+      
       return { success: true };
     } catch (error) {
-      console.error("Error verifying email:", error);
+      console.error("Error resending verification email:", error);
       return { success: false, error: error.message };
     }
   },

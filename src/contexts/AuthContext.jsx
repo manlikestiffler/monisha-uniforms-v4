@@ -39,12 +39,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
-    await firebaseSignOut(getAuth());
-    setCurrentUser(null);
+    try {
+      await firebaseSignOut(getAuth());
+      setCurrentUser(null);
+      // Clear user-related data from storage
+      localStorage.removeItem('cart');
+      localStorage.removeItem('wishlist');
+      localStorage.removeItem('userId'); // If you use a guest user ID
+      sessionStorage.clear(); // Clear session storage as well
+      window.location.href = '/login'; // Redirect to login and force a refresh
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
   };
   
   const sendPasswordReset = async (email) => {
     return await firebaseService.sendPasswordReset(email);
+  };
+  
+  const resendVerificationEmail = async () => {
+    return await firebaseService.resendVerificationEmail();
   };
   
   const value = {
@@ -54,6 +68,8 @@ export const AuthProvider = ({ children }) => {
     signUp,
     signOut,
     sendPasswordReset,
+    resendVerificationEmail,
+    user: currentUser, // Add user alias for compatibility with VerifyEmail component
   };
 
   return (
