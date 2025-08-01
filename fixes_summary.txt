@@ -1,0 +1,29 @@
+This document summarizes the fixes and improvements made to the web application.
+
+1.  **Cart Quantity and Uniqueness**
+    *   **Challenge**: When adding a product to the cart, the quantity was not being calculated correctly. Products with different sizes were treated as the same item, causing the quantity to be incremented instead of adding a new, unique item to the cart.
+    *   **Solution**: The logic in `firebase.js` and `CartContext.jsx` was updated to check for both the product `id` and `size`. This ensures that items with different sizes are treated as unique entries in the cart.
+
+2.  **Cart Icon Display**
+    *   **Challenge**: The cart icon was displaying the total quantity of all items, rather than the number of unique products.
+    *   **Solution**: The `CartIcon.jsx` component was modified to display the length of the `cartItems` array, which accurately reflects the number of unique products in the cart.
+
+3.  **Page Refresh on Quantity Change**
+    *   **Challenge**: The cart page was refreshing every time the quantity of an item was updated.
+    *   **Solution**: Redundant event listeners were removed from `firebase.js`. This stopped the cart from reloading every time a quantity was changed, which fixed the flickering and refreshing issue.
+
+4.  **Wishlist Feedback**
+    *   **Challenge**: There was no user notification when an item was added to the wishlist.
+    *   **Solution**: A toast notification was added to the `ProductCard.jsx` component to provide feedback when an item is added to or removed from the wishlist.
+
+5.  **Wishlist UI and Layout**
+    *   **Challenge**: The "Remove from Wishlist" button was poorly placed, and the overall design of the wishlist page was outdated.
+    *   **Solution**: The wishlist page was redesigned with a more modern and user-friendly layout. The "Remove from Wishlist" button was moved to a more intuitive location next to the product name.
+
+6.  **Cart Repopulation After Clearing**
+    *   **Challenge**: After clearing the cart and refreshing the page, the cart would repopulate with the old items. This was caused by a race condition where the cart was loading data from local storage before the user's authentication status was confirmed.
+    *   **Solution**: The `AuthContext` and `CartContext` were refactored to ensure that the cart only loads its data after the authentication process is complete. This eliminated the race condition and prevented the cart from loading stale data.
+
+7.  **Authentication and Routing**
+    *   **Challenge**: After logging in, the app would not recognize the user's logged-in state, which prevented access to protected pages like the cart.
+    *   **Solution**: The `ProtectedRoute.jsx` component was updated to correctly check for the `currentUser` object from the `useAuth` hook. This resolved the issue and ensured that the user's authentication state was correctly recognized throughout the application. 
