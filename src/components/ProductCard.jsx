@@ -130,7 +130,7 @@ export default function ProductCard({ product, schoolData }) {
   
   const firstVariant = product.variants?.[0] || {};
   const firstSize = firstVariant.sizes?.[0] || {};
-  const displayPrice = firstSize.price || 0;
+  const displayPrice = parseFloat(firstSize.price || product.price || 0);
 
   return (
     <motion.div

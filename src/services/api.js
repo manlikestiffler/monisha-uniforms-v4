@@ -1,22 +1,26 @@
 import firebaseService from './firebase';
 
 const api = {
-  getRecentProducts: async () => {
+  getRecentProducts: (callback, limit) => {
     try {
-      const uniforms = await firebaseService.getRecentUniforms();
-      return uniforms.map(uniform => transformUniformToProduct(uniform));
+      return firebaseService.getRecentUniforms((uniforms) => {
+        const products = uniforms.map(uniform => transformUniformToProduct(uniform));
+        callback(products);
+      }, limit);
     } catch (error) {
       console.error("Error in getRecentProducts:", error);
       throw error;
     }
   },
 
-  getTopRatedProducts: async () => {
+  getTopRatedProductsWithListener: (callback) => {
     try {
-      const uniforms = await firebaseService.getTopRatedUniforms();
-      return uniforms.map(uniform => transformUniformToProduct(uniform));
+      return firebaseService.getTopRatedUniformsWithListener((uniforms) => {
+        const products = uniforms.map(uniform => transformUniformToProduct(uniform));
+        callback(products);
+      });
     } catch (error) {
-      console.error("Error in getTopRatedProducts:", error);
+      console.error("Error in getTopRatedProductsWithListener:", error);
       throw error;
     }
   },

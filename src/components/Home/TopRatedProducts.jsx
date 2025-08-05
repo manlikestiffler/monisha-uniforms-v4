@@ -9,14 +9,12 @@ const TopRatedProducts = () => {
   const [schools, setSchools] = useState({});
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        // Fetch top rated uniforms
-        const data = await api.getTopRatedProducts();
-        setProducts(data);
-
-        // Fetch school information for each product
-        const schoolIds = [...new Set(data.filter(p => p.schoolId).map(p => p.schoolId))];
+    const unsubscribe = api.getTopRatedProductsWithListener((fetchedProducts) => {
+      setProducts(fetchedProducts);
+      
+      // Fetch school information for each product
+      const fetchSchools = async () => {
+        const schoolIds = [...new Set(fetchedProducts.filter(p => p.schoolId).map(p => p.schoolId))];
         const schoolsData = {};
         
         for (const schoolId of schoolIds) {
@@ -27,16 +25,15 @@ const TopRatedProducts = () => {
             console.error(`Error fetching school ${schoolId}:`, error);
           }
         }
-        
         setSchools(schoolsData);
-      } catch (err) {
-        setError(err.message || "Failed to load top rated products");
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchProducts();
+      fetchSchools();
+      setLoading(false);
+    });
+
+    // Cleanup subscription on component unmount
+    return () => unsubscribe();
   }, []);
 
   if (loading) return (

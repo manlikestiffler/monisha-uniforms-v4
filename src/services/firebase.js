@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getFirestore, collection, getDocs, getDoc, doc, query, orderBy, limit, where, addDoc, updateDoc, deleteDoc, setDoc, arrayUnion, arrayRemove, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, getDocs, getDoc, doc, query, orderBy, limit, where, addDoc, updateDoc, deleteDoc, setDoc, arrayUnion, arrayRemove, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, sendEmailVerification, updateProfile } from "firebase/auth";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -74,7 +74,8 @@ const firebaseService = {
   getAllUniforms: async () => {
     try {
       const uniformsRef = collection(db, "uniforms");
-      const uniformsSnapshot = await getDocs(uniformsRef);
+      const q = query(uniformsRef, orderBy("createdAt", "desc"));
+      const uniformsSnapshot = await getDocs(q);
       return uniformsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -85,38 +86,49 @@ const firebaseService = {
     }
   },
 
-  // Get recent uniforms
-  getRecentUniforms: async (limitCount = 4) => {
+  // Get recent uniforms with real-time listener
+  getRecentUniforms: (callback, limitCount = 3) => {
     try {
       const uniformsRef = collection(db, "uniforms");
       const q = query(uniformsRef, orderBy("createdAt", "desc"), limit(limitCount));
-      const uniformsSnapshot = await getDocs(q);
-      return uniformsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const uniforms = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        callback(uniforms);
+      });
+
+      return unsubscribe; // Return the unsubscribe function to be called on cleanup
     } catch (error) {
-      console.error("Error getting recent uniforms:", error);
+      console.error("Error setting up real-time listener for recent uniforms:", error);
       throw error;
     }
   },
 
-  // Get top rated uniforms
-  getTopRatedUniforms: async (limitCount = 4) => {
+  // Get top rated uniforms with real-time listener
+  getTopRatedUniformsWithListener: (callback, limitCount = 4) => {
     try {
       const uniformsRef = collection(db, "uniforms");
-      // Note: If your uniforms collection doesn't have a rating field,
-      // you might need to modify this query
       const q = query(uniformsRef, orderBy("rating", "desc"), limit(limitCount));
-      const uniformsSnapshot = await getDocs(q);
-      return uniformsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const uniforms = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        callback(uniforms);
+      }, (error) => {
+        console.error("Error with top-rated uniforms listener: ", error);
+        // Fallback to recent uniforms if rating index is missing
+        return firebaseService.getRecentUniforms(callback, limitCount);
+      });
+
+      return unsubscribe;
     } catch (error) {
-      console.error("Error getting top rated uniforms:", error);
-      // If rating field doesn't exist, fall back to recent uniforms
-      return await firebaseService.getRecentUniforms(limitCount);
+      console.error("Error setting up real-time listener for top-rated uniforms:", error);
+      throw error;
     }
   },
 
