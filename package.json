@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "json-server": "json-server --watch db.json --port 3005",
-    "list-collections": "node src/scripts/listAllCollections.js"
+    "list-collections": "node src/scripts/listAllCollections.js",
+    "verify-redirects": "npm run build && cat dist/_redirects || echo 'Redirects file not found!'"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

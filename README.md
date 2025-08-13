@@ -119,6 +119,67 @@ The application will be available at `http://localhost:5174`.
 - **`npm run build`**: Builds the application for production.
 - **`npm run preview`**: Serves the production build locally for previewing.
 - **`npm run json-server`**: Starts the JSON server with the mock database (if needed).
+- **`npm run verify-redirects`**: Builds the project and checks if the redirects file is in the build output.
+
+## Netlify Deployment Configuration
+
+This project uses client-side routing, which requires special configuration on static hosts like Netlify to handle direct URL access and page refreshes.
+
+### Redirect Configuration
+
+We've set up two methods to ensure all routes redirect to `index.html`:
+
+1. **Using `_redirects` file:**
+   - A `_redirects` file is located in the `public` folder with the following content:
+     ```
+     /* /index.html 200
+     ```
+   - This tells Netlify to serve `index.html` for all routes with a 200 (OK) status code.
+
+2. **Using `netlify.toml`:**
+   - A `netlify.toml` file in the project root provides the same configuration:
+     ```toml
+     [[redirects]]
+       from = "/*"
+       to = "/index.html"
+       status = 200
+     ```
+
+### Deployment Steps
+
+1. **Build your project:**
+   ```bash
+   npm run build
+   # or
+   yarn build
+   ```
+
+2. **Verify redirects configuration:**
+   ```bash
+   npm run verify-redirects
+   ```
+   This command checks if the `_redirects` file is correctly included in the build output.
+
+3. **Deploy to Netlify:**
+   - Connect your GitHub repository to Netlify, or
+   - Use Netlify CLI to deploy the `dist` folder
+
+### Troubleshooting
+
+If you encounter 404 errors after deployment:
+
+1. **Check build directory setting:** Ensure Netlify's deploy settings use the correct build directory (`dist` for Vite)
+2. **Verify redirects file:** Confirm the `_redirects` file is in your build output
+3. **Check for conflicts:** If using both `_redirects` and `netlify.toml`, note that `netlify.toml` takes precedence
+4. **Test after deployment:** Visit a nested route directly and refresh the page to verify the configuration works
+
+### Verification
+
+To verify redirects are working correctly:
+1. Visit your deployed site and navigate to a nested route (e.g., `/collections`)
+2. Refresh the page - it should load correctly instead of showing a 404
+3. Try accessing the nested route directly via URL
+4. Check network requests in your browser's developer tools - a properly redirected route should return a 200 status code
 
 ## Future Enhancements
 
